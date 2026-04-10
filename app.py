@@ -44,6 +44,12 @@ if mode == "Employee":
 
     task = st.selectbox("Select Task", tasks)
 
+    # ===== NEW FIELDS =====
+    client_name = st.text_input("Enter Client Name")
+
+    status_options = ["Completed", "Pending", "In Progress"]
+    status = st.selectbox("Select Status", status_options)
+
     # ===== SESSION STATE =====
     if "running" not in st.session_state:
         st.session_state.running = False
@@ -57,11 +63,12 @@ if mode == "Employee":
     if col1.button("▶️ Start / Resume"):
         if user == "-- Select --":
             st.warning("⚠️ Please select your name")
+        elif client_name.strip() == "":
+            st.warning("⚠️ Please enter client name")
         else:
             if not st.session_state.running:
                 st.session_state.running = True
 
-                # Resume logic
                 if st.session_state.pause_time:
                     st.session_state.total_paused += time.time() - st.session_state.pause_time
                     st.session_state.pause_time = None
@@ -86,8 +93,10 @@ if mode == "Employee":
             data = {
                 "User": user,
                 "Task": task,
-                df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
-                df["End Time"] = pd.to_datetime(df["End Time"], errors="coerce")          
+                "Client Name": client_name,
+                "Status": status,
+                "Start Time": datetime.fromtimestamp(st.session_state.start_time).strftime("%Y-%m-%d %I:%M:%S %p"),
+                "End Time": datetime.now().strftime("%Y-%m-%d %I:%M:%S %p"),
                 "Total Time (sec)": total_time,
                 "Idle Time (sec)": 0,
                 "Active Time (sec)": total_time
@@ -141,21 +150,27 @@ elif mode == "Manager Dashboard":
     else:
         df = pd.read_csv(file)
 
-        df["Start Time"] = pd.to_datetime(df["Start Time"])
-        df["End Time"] = pd.to_datetime(df["End Time"])
+        # SAFE CONVERSION
+        df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
+        df["End Time"] = pd.to_datetime(df["End Time"], errors="coerce")
+
+        df = df.dropna(subset=["Start Time", "End Time"])
 
         # ===== FILTERS =====
         st.subheader("🔍 Filters")
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
         users = ["All"] + list(df["User"].dropna().unique())
-        selected_user = col1.selectbox("Select Employee", users)
+        selected_user = col1.selectbox("Employee", users)
 
         tasks = ["All"] + list(df["Task"].unique())
-        selected_task = col2.selectbox("Select Task", tasks)
+        selected_task = col2.selectbox("Task", tasks)
 
-        selected_date = col3.date_input("Select Date")
+        statuses = ["All"] + list(df["Status"].dropna().unique())
+        selected_status = col3.selectbox("Status", statuses)
+
+        selected_date = col4.date_input("Date")
 
         filtered_df = df.copy()
 
@@ -165,56 +180,45 @@ elif mode == "Manager Dashboard":
         if selected_task != "All":
             filtered_df = filtered_df[filtered_df["Task"] == selected_task]
 
+        if selected_status != "All":
+            filtered_df = filtered_df[filtered_df["Status"] == selected_status]
+
         if selected_date:
             filtered_df = filtered_df[
                 filtered_df["Start Time"].dt.date == selected_date
             ]
 
         # ===== TABLE =====
-        st.subheader("📋 Filtered Data")
+        st.subheader("📋 Data")
         st.dataframe(filtered_df, use_container_width=True)
 
         # ===== METRICS =====
         st.subheader("📈 Summary")
 
         total_time = filtered_df["Total Time (sec)"].sum()
-        idle_time = filtered_df["Idle Time (sec)"].sum()
         active_time = filtered_df["Active Time (sec)"].sum()
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
 
-        col1.metric("Total Time (hrs)", round(total_time / 3600, 2))
-        col2.metric("Idle Time (hrs)", round(idle_time / 3600, 2))
-        col3.metric("Active Time (hrs)", round(active_time / 3600, 2))
+        col1.metric("Total Hours", round(total_time / 3600, 2))
+        col2.metric("Active Hours", round(active_time / 3600, 2))
 
-        # ===== CHARTS =====
+        # ===== CHART =====
         st.subheader("📊 Task Distribution")
 
         if not filtered_df.empty:
-            task_summary = filtered_df.groupby("Task")["Active Time (sec)"].sum()
-            st.bar_chart(task_summary)
+            st.bar_chart(filtered_df.groupby("Task")["Active Time (sec)"].sum())
         else:
-            st.warning("No data for chart")
-
-        st.subheader("⚡ Productivity Split")
-
-        if not filtered_df.empty:
-            prod_data = {
-                "Active": active_time,
-                "Idle": idle_time
-            }
-            st.bar_chart(prod_data)
-        else:
-            st.warning("No data for chart")
+            st.warning("No data available")
 
         # ===== DOWNLOAD =====
-        st.subheader("⬇️ Export Report")
+        st.subheader("⬇️ Export")
 
         csv = filtered_df.to_csv(index=False).encode("utf-8")
 
         st.download_button(
-            label="Download Filtered Report",
-            data=csv,
-            file_name="workpulse_report.csv",
-            mime="text/csv"
+            "Download Report",
+            csv,
+            "workpulse_report.csv",
+            "text/csv"
         )
