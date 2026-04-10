@@ -2,9 +2,13 @@ import streamlit as st
 import time
 import pandas as pd
 from datetime import datetime
+import pytz
 import os
 
 st.set_page_config(page_title="WorkPulse", layout="wide")
+
+# ===== TIMEZONE (IST) =====
+IST = pytz.timezone("Asia/Kolkata")
 
 # ===== FILE =====
 file = "task_log.csv"
@@ -44,11 +48,14 @@ if mode == "Employee":
 
     task = st.selectbox("Select Task", tasks)
 
-    # ===== NEW FIELDS =====
+    # ===== CLIENT + STATUS =====
     client_name = st.text_input("Enter Client Name")
 
     status_options = ["Completed", "Pending", "In Progress"]
     status = st.selectbox("Select Status", status_options)
+
+    # ===== DATE =====
+    selected_date = st.date_input("Select Date", datetime.now(IST))
 
     # ===== SESSION STATE =====
     if "running" not in st.session_state:
@@ -90,13 +97,18 @@ if mode == "Employee":
 
             total_time = int(end_time - st.session_state.start_time - st.session_state.total_paused)
 
+            # ✅ CONVERT TO IST
+            start_dt = datetime.fromtimestamp(st.session_state.start_time, IST)
+            end_dt = datetime.now(IST)
+
             data = {
                 "User": user,
                 "Task": task,
                 "Client Name": client_name,
                 "Status": status,
-                "Start Time": datetime.fromtimestamp(st.session_state.start_time).strftime("%Y-%m-%d %I:%M:%S %p"),
-                "End Time": datetime.now().strftime("%Y-%m-%d %I:%M:%S %p"),
+                "Date": selected_date.strftime("%Y-%m-%d"),
+                "Start Time": start_dt.strftime("%I:%M:%S %p"),
+                "End Time": end_dt.strftime("%I:%M:%S %p"),
                 "Total Time (sec)": total_time,
                 "Idle Time (sec)": 0,
                 "Active Time (sec)": total_time
@@ -150,12 +162,6 @@ elif mode == "Manager Dashboard":
     else:
         df = pd.read_csv(file)
 
-        # SAFE CONVERSION
-        df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
-        df["End Time"] = pd.to_datetime(df["End Time"], errors="coerce")
-
-        df = df.dropna(subset=["Start Time", "End Time"])
-
         # ===== FILTERS =====
         st.subheader("🔍 Filters")
 
@@ -185,7 +191,7 @@ elif mode == "Manager Dashboard":
 
         if selected_date:
             filtered_df = filtered_df[
-                filtered_df["Start Time"].dt.date == selected_date
+                pd.to_datetime(filtered_df["Date"]).dt.date == selected_date
             ]
 
         # ===== TABLE =====
