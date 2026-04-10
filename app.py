@@ -86,8 +86,8 @@ if mode == "Employee":
             data = {
                 "User": user,
                 "Task": task,
-                "Start Time": datetime.fromtimestamp(st.session_state.start_time),
-                "End Time": datetime.now(),
+                "Start Time": datetime.fromtimestamp(st.session_state.start_time).strftime("%Y-%m-%d %I:%M:%S %p"),
+                "End Time": datetime.now().strftime("%Y-%m-%d %I:%M:%S %p"),           
                 "Total Time (sec)": total_time,
                 "Idle Time (sec)": 0,
                 "Active Time (sec)": total_time
