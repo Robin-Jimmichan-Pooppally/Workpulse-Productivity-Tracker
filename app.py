@@ -86,8 +86,8 @@ if mode == "Employee":
             data = {
                 "User": user,
                 "Task": task,
-                "Start Time": datetime.fromtimestamp(st.session_state.start_time).strftime("%Y-%m-%d %I:%M:%S %p"),
-                "End Time": datetime.now().strftime("%Y-%m-%d %I:%M:%S %p"),           
+                df["Start Time"] = pd.to_datetime(df["Start Time"], errors="coerce")
+                df["End Time"] = pd.to_datetime(df["End Time"], errors="coerce")          
                 "Total Time (sec)": total_time,
                 "Idle Time (sec)": 0,
                 "Active Time (sec)": total_time
