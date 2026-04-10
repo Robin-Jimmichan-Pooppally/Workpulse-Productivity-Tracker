@@ -6,10 +6,12 @@ import os
 
 st.set_page_config(page_title="WorkPulse", layout="wide")
 
+# ===== FILE =====
+file = "task_log.csv"
+
 # ===== SIDEBAR =====
 mode = st.sidebar.radio("Select Mode", ["Employee", "Manager Dashboard"])
 
-file = "task_log.csv"
 
 # =========================
 # 👨‍💻 EMPLOYEE MODE
@@ -31,10 +33,9 @@ if mode == "Employee":
         "Prajwal"
     ])
 
-    # Dropdown selection
     user = st.selectbox("Select Your Name", ["-- Select --"] + team_members)
 
-    # ===== TASK LIST =====
+    # ===== TASKS =====
     tasks = [
         "List Bill Audit",
         "Retro Bill Audit",
@@ -47,32 +48,40 @@ if mode == "Employee":
     if "running" not in st.session_state:
         st.session_state.running = False
         st.session_state.start_time = None
-        st.session_state.elapsed = 0
-        st.session_state.idle_time = 0
+        st.session_state.pause_time = None
+        st.session_state.total_paused = 0
 
     col1, col2, col3 = st.columns(3)
 
-    # START
-    if col1.button("▶️ Start"):
+    # ▶️ START / RESUME
+    if col1.button("▶️ Start / Resume"):
         if user == "-- Select --":
-            st.warning("⚠️ Please select your name before starting")
+            st.warning("⚠️ Please select your name")
         else:
-            st.session_state.running = True
-            st.session_state.start_time = time.time()
-            st.session_state.elapsed = 0
-            st.session_state.idle_time = 0
+            if not st.session_state.running:
+                st.session_state.running = True
 
-    # PAUSE
+                # Resume logic
+                if st.session_state.pause_time:
+                    st.session_state.total_paused += time.time() - st.session_state.pause_time
+                    st.session_state.pause_time = None
+                else:
+                    st.session_state.start_time = time.time()
+
+    # ⏸ PAUSE
     if col2.button("⏸ Pause"):
-        st.session_state.running = False
+        if st.session_state.running:
+            st.session_state.running = False
+            st.session_state.pause_time = time.time()
 
-    # STOP
+    # ⏹ STOP
     if col3.button("⏹ Stop"):
         if st.session_state.start_time is None:
             st.warning("⚠️ Start a task first")
         else:
-            total_time = st.session_state.elapsed
-            active_time = total_time - st.session_state.idle_time
+            end_time = time.time()
+
+            total_time = int(end_time - st.session_state.start_time - st.session_state.total_paused)
 
             data = {
                 "User": user,
@@ -80,8 +89,8 @@ if mode == "Employee":
                 "Start Time": datetime.fromtimestamp(st.session_state.start_time),
                 "End Time": datetime.now(),
                 "Total Time (sec)": total_time,
-                "Idle Time (sec)": st.session_state.idle_time,
-                "Active Time (sec)": active_time
+                "Idle Time (sec)": 0,
+                "Active Time (sec)": total_time
             }
 
             df = pd.DataFrame([data])
@@ -93,17 +102,33 @@ if mode == "Employee":
             df.to_csv(file, index=False)
 
             st.success("✅ Task Logged Successfully!")
+
+            # Reset
             st.session_state.running = False
+            st.session_state.start_time = None
+            st.session_state.pause_time = None
+            st.session_state.total_paused = 0
 
-    # TIMER
-    if st.session_state.running:
-        st.session_state.elapsed += 1
-        time.sleep(1)
-        st.rerun()
+    # ===== LIVE TIMER =====
+    if st.session_state.start_time:
 
-    st.write(f"⏳ Total Time: {st.session_state.elapsed} sec")
-    st.write(f"🔥 Active Time: {st.session_state.elapsed - st.session_state.idle_time} sec")
-    
+        if st.session_state.running:
+            current_time = time.time()
+        else:
+            current_time = st.session_state.pause_time or time.time()
+
+        elapsed = int(current_time - st.session_state.start_time - st.session_state.total_paused)
+
+        hours, remainder = divmod(elapsed, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        st.markdown(f"## ⏳ Timer: {hours:02d}:{minutes:02d}:{seconds:02d}")
+
+        if st.session_state.running:
+            time.sleep(1)
+            st.rerun()
+
+
 # =========================
 # 👨‍💼 MANAGER DASHBOARD
 # =========================
@@ -116,13 +141,10 @@ elif mode == "Manager Dashboard":
     else:
         df = pd.read_csv(file)
 
-        # Convert datetime
         df["Start Time"] = pd.to_datetime(df["Start Time"])
         df["End Time"] = pd.to_datetime(df["End Time"])
 
-        # =========================
-        # 🔍 FILTERS
-        # =========================
+        # ===== FILTERS =====
         st.subheader("🔍 Filters")
 
         col1, col2, col3 = st.columns(3)
@@ -135,7 +157,6 @@ elif mode == "Manager Dashboard":
 
         selected_date = col3.date_input("Select Date")
 
-        # APPLY FILTERS
         filtered_df = df.copy()
 
         if selected_user != "All":
@@ -149,15 +170,11 @@ elif mode == "Manager Dashboard":
                 filtered_df["Start Time"].dt.date == selected_date
             ]
 
-        # =========================
-        # 📋 DATA TABLE
-        # =========================
+        # ===== TABLE =====
         st.subheader("📋 Filtered Data")
         st.dataframe(filtered_df, use_container_width=True)
 
-        # =========================
-        # 📈 METRICS
-        # =========================
+        # ===== METRICS =====
         st.subheader("📈 Summary")
 
         total_time = filtered_df["Total Time (sec)"].sum()
@@ -170,9 +187,7 @@ elif mode == "Manager Dashboard":
         col2.metric("Idle Time (hrs)", round(idle_time / 3600, 2))
         col3.metric("Active Time (hrs)", round(active_time / 3600, 2))
 
-        # =========================
-        # 📊 CHARTS
-        # =========================
+        # ===== CHARTS =====
         st.subheader("📊 Task Distribution")
 
         if not filtered_df.empty:
@@ -185,16 +200,14 @@ elif mode == "Manager Dashboard":
 
         if not filtered_df.empty:
             prod_data = {
-                "Active": filtered_df["Active Time (sec)"].sum(),
-                "Idle": filtered_df["Idle Time (sec)"].sum()
+                "Active": active_time,
+                "Idle": idle_time
             }
             st.bar_chart(prod_data)
         else:
             st.warning("No data for chart")
 
-        # =========================
-        # ⬇️ DOWNLOAD
-        # =========================
+        # ===== DOWNLOAD =====
         st.subheader("⬇️ Export Report")
 
         csv = filtered_df.to_csv(index=False).encode("utf-8")
