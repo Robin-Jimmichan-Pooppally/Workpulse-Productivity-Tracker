@@ -17,9 +17,22 @@ file = "task_log.csv"
 if mode == "Employee":
 
     st.title("👨‍💻 WorkPulse – Employee Tracker")
+    
+# ===== TEAM MEMBERS =====
+team_members = sorted([
+    "Robin",
+    "Shiksha",
+    "Hemanth",
+    "Allan",
+    "Manisha",
+    "Dinesh",
+    "Rithapreetha",
+    "Suhas",
+    "Prajwal"
+])
 
-    user = st.text_input("Enter Your Name")
-
+# Dropdown selection
+user = st.selectbox("Select Your Name", ["-- Select --"] + team_members)
     tasks = [
         "List Bill Audit",
         "Retro Bill Audit",
