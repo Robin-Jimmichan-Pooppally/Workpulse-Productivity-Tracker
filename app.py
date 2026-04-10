@@ -83,7 +83,6 @@ if mode == "Employee":
     st.write(f"⏳ Total Time: {st.session_state.elapsed} sec")
     st.write(f"🔥 Active Time: {st.session_state.elapsed - st.session_state.idle_time} sec")
 
-
 # =========================
 # 👨‍💼 MANAGER DASHBOARD
 # =========================
@@ -100,7 +99,9 @@ elif mode == "Manager Dashboard":
         df["Start Time"] = pd.to_datetime(df["Start Time"])
         df["End Time"] = pd.to_datetime(df["End Time"])
 
-        # ===== FILTERS =====
+        # =========================
+        # 🔍 FILTERS
+        # =========================
         st.subheader("🔍 Filters")
 
         col1, col2, col3 = st.columns(3)
@@ -127,11 +128,15 @@ elif mode == "Manager Dashboard":
                 filtered_df["Start Time"].dt.date == selected_date
             ]
 
-        # DISPLAY
+        # =========================
+        # 📋 DATA TABLE
+        # =========================
         st.subheader("📋 Filtered Data")
         st.dataframe(filtered_df, use_container_width=True)
 
-        # METRICS
+        # =========================
+        # 📈 METRICS
+        # =========================
         st.subheader("📈 Summary")
 
         total_time = filtered_df["Total Time (sec)"].sum()
@@ -144,7 +149,31 @@ elif mode == "Manager Dashboard":
         col2.metric("Idle Time (hrs)", round(idle_time / 3600, 2))
         col3.metric("Active Time (hrs)", round(active_time / 3600, 2))
 
-        # DOWNLOAD
+        # =========================
+        # 📊 CHARTS
+        # =========================
+        st.subheader("📊 Task Distribution")
+
+        if not filtered_df.empty:
+            task_summary = filtered_df.groupby("Task")["Active Time (sec)"].sum()
+            st.bar_chart(task_summary)
+        else:
+            st.warning("No data for chart")
+
+        st.subheader("⚡ Productivity Split")
+
+        if not filtered_df.empty:
+            prod_data = {
+                "Active": filtered_df["Active Time (sec)"].sum(),
+                "Idle": filtered_df["Idle Time (sec)"].sum()
+            }
+            st.bar_chart(prod_data)
+        else:
+            st.warning("No data for chart")
+
+        # =========================
+        # ⬇️ DOWNLOAD
+        # =========================
         st.subheader("⬇️ Export Report")
 
         csv = filtered_df.to_csv(index=False).encode("utf-8")
