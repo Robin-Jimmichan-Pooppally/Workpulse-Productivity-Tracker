@@ -17,22 +17,24 @@ file = "task_log.csv"
 if mode == "Employee":
 
     st.title("👨‍💻 WorkPulse – Employee Tracker")
-    
-# ===== TEAM MEMBERS =====
-team_members = sorted([
-    "Robin",
-    "Shiksha",
-    "Hemanth",
-    "Allan",
-    "Manisha",
-    "Dinesh",
-    "Rithapreetha",
-    "Suhas",
-    "Prajwal"
-])
 
-# Dropdown selection
-user = st.selectbox("Select Your Name", ["-- Select --"] + team_members)
+    # ===== TEAM MEMBERS =====
+    team_members = sorted([
+        "Robin",
+        "Shiksha",
+        "Hemanth",
+        "Allan",
+        "Manisha",
+        "Dinesh",
+        "Rithapreetha",
+        "Suhas",
+        "Prajwal"
+    ])
+
+    # Dropdown selection
+    user = st.selectbox("Select Your Name", ["-- Select --"] + team_members)
+
+    # ===== TASK LIST =====
     tasks = [
         "List Bill Audit",
         "Retro Bill Audit",
@@ -41,7 +43,7 @@ user = st.selectbox("Select Your Name", ["-- Select --"] + team_members)
 
     task = st.selectbox("Select Task", tasks)
 
-    # SESSION STATE
+    # ===== SESSION STATE =====
     if "running" not in st.session_state:
         st.session_state.running = False
         st.session_state.start_time = None
@@ -52,10 +54,13 @@ user = st.selectbox("Select Your Name", ["-- Select --"] + team_members)
 
     # START
     if col1.button("▶️ Start"):
-        st.session_state.running = True
-        st.session_state.start_time = time.time()
-        st.session_state.elapsed = 0
-        st.session_state.idle_time = 0
+        if user == "-- Select --":
+            st.warning("⚠️ Please select your name before starting")
+        else:
+            st.session_state.running = True
+            st.session_state.start_time = time.time()
+            st.session_state.elapsed = 0
+            st.session_state.idle_time = 0
 
     # PAUSE
     if col2.button("⏸ Pause"):
@@ -63,29 +68,32 @@ user = st.selectbox("Select Your Name", ["-- Select --"] + team_members)
 
     # STOP
     if col3.button("⏹ Stop"):
-        total_time = st.session_state.elapsed
-        active_time = total_time - st.session_state.idle_time
+        if st.session_state.start_time is None:
+            st.warning("⚠️ Start a task first")
+        else:
+            total_time = st.session_state.elapsed
+            active_time = total_time - st.session_state.idle_time
 
-        data = {
-            "User": user,
-            "Task": task,
-            "Start Time": datetime.fromtimestamp(st.session_state.start_time),
-            "End Time": datetime.now(),
-            "Total Time (sec)": total_time,
-            "Idle Time (sec)": st.session_state.idle_time,
-            "Active Time (sec)": active_time
-        }
+            data = {
+                "User": user,
+                "Task": task,
+                "Start Time": datetime.fromtimestamp(st.session_state.start_time),
+                "End Time": datetime.now(),
+                "Total Time (sec)": total_time,
+                "Idle Time (sec)": st.session_state.idle_time,
+                "Active Time (sec)": active_time
+            }
 
-        df = pd.DataFrame([data])
+            df = pd.DataFrame([data])
 
-        if os.path.exists(file):
-            existing = pd.read_csv(file)
-            df = pd.concat([existing, df], ignore_index=True)
+            if os.path.exists(file):
+                existing = pd.read_csv(file)
+                df = pd.concat([existing, df], ignore_index=True)
 
-        df.to_csv(file, index=False)
+            df.to_csv(file, index=False)
 
-        st.success("✅ Task Logged Successfully!")
-        st.session_state.running = False
+            st.success("✅ Task Logged Successfully!")
+            st.session_state.running = False
 
     # TIMER
     if st.session_state.running:
@@ -95,7 +103,7 @@ user = st.selectbox("Select Your Name", ["-- Select --"] + team_members)
 
     st.write(f"⏳ Total Time: {st.session_state.elapsed} sec")
     st.write(f"🔥 Active Time: {st.session_state.elapsed - st.session_state.idle_time} sec")
-
+    
 # =========================
 # 👨‍💼 MANAGER DASHBOARD
 # =========================
