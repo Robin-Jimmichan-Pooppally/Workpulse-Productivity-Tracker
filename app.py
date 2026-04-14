@@ -67,7 +67,6 @@ if mode == "Employee":
     user = st.session_state.username
     st.write(f"👤 User: {user}")
 
-    # ✅ UPDATED TASK LIST
     tasks = [
         "Meeting",
         "List bill audit",
@@ -85,8 +84,10 @@ if mode == "Employee":
 
     client_name = st.text_input("Client Name")
 
-    # ✅ ONLY 2 STATUS
     status = st.selectbox("Status", ["In Progress", "Completed"])
+
+    # 🆕 COMMENTS
+    comments = st.text_area("Add Comments (Optional)")
 
     selected_date = st.date_input("Date", datetime.now(IST))
 
@@ -132,6 +133,7 @@ if mode == "Employee":
                 "Task": task,
                 "Client Name": client_name,
                 "Status": status,
+                "Comments": comments,  # 🆕
                 "Date": selected_date.strftime("%Y-%m-%d"),
                 "Start Time": start_dt.strftime("%I:%M:%S %p"),
                 "End Time": end_dt.strftime("%I:%M:%S %p"),
@@ -145,6 +147,7 @@ if mode == "Employee":
             if os.path.exists(file):
                 existing = pd.read_csv(file)
 
+                # FIX COLUMN MISMATCH
                 for col in new_df.columns:
                     if col not in existing.columns:
                         existing[col] = ""
@@ -215,6 +218,7 @@ elif mode == "Manager Dashboard":
         if date_filter:
             df = df[pd.to_datetime(df["Date"]).dt.date == date_filter]
 
+        # ✅ SHOW COMMENTS ALSO
         st.dataframe(df, use_container_width=True)
 
         total = df["Total Time (sec)"].sum()
