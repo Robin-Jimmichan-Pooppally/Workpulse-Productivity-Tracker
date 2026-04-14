@@ -13,19 +13,8 @@ IST = pytz.timezone("Asia/Kolkata")
 # ===== FILE =====
 file = "task_log.csv"
 
-# ===== USER DATABASE =====
-users = {
-    "Robin": {"password": "1234", "role": "employee"},
-    "Shiksha": {"password": "1234", "role": "employee"},
-    "Hemanth": {"password": "1234", "role": "employee"},
-    "Allan": {"password": "1234", "role": "employee"},
-    "Manisha": {"password": "1234", "role": "employee"},
-    "Dinesh": {"password": "1234", "role": "employee"},
-    "Rithapreetha": {"password": "1234", "role": "employee"},
-    "Suhas": {"password": "1234", "role": "employee"},
-    "Prajwal": {"password": "1234", "role": "employee"},
-    "admin": {"password": "admin123", "role": "manager"}
-}
+# ===== LOAD USERS FROM SECRETS =====
+users = st.secrets["users"]
 
 # =========================
 # 🔐 LOGIN SYSTEM
@@ -78,12 +67,26 @@ if mode == "Employee":
     user = st.session_state.username
     st.write(f"👤 User: {user}")
 
-    tasks = ["List Bill Audit", "Retro Bill Audit", "CPS Creation"]
-    task = st.selectbox("Select Task", tasks)
+    # ✅ UPDATED TASK LIST
+    tasks = [
+        "Meeting",
+        "List bill audit",
+        "Retro bill audit",
+        "CPS creation",
+        "Backup creations",
+        "Assessments",
+        "Training video",
+        "Coordination",
+        "QA check",
+        "Break"
+    ]
+
+    task = st.selectbox("Select Activity", tasks)
 
     client_name = st.text_input("Client Name")
 
-    status = st.selectbox("Status", ["Completed", "Pending", "In Progress"])
+    # ✅ ONLY 2 STATUS
+    status = st.selectbox("Status", ["In Progress", "Completed"])
 
     selected_date = st.date_input("Date", datetime.now(IST))
 
@@ -96,7 +99,6 @@ if mode == "Employee":
 
     col1, col2, col3 = st.columns(3)
 
-    # START
     if col1.button("▶️ Start"):
         if client_name.strip() == "":
             st.warning("Enter client name")
@@ -110,13 +112,11 @@ if mode == "Employee":
                 else:
                     st.session_state.start_time = time.time()
 
-    # PAUSE
     if col2.button("⏸ Pause"):
         if st.session_state.running:
             st.session_state.running = False
             st.session_state.pause_time = time.time()
 
-    # STOP
     if col3.button("⏹ Stop"):
         if st.session_state.start_time is None:
             st.warning("Start task first")
@@ -145,7 +145,6 @@ if mode == "Employee":
             if os.path.exists(file):
                 existing = pd.read_csv(file)
 
-                # FIX COLUMN MISMATCH
                 for col in new_df.columns:
                     if col not in existing.columns:
                         existing[col] = ""
@@ -162,7 +161,6 @@ if mode == "Employee":
 
             st.success("✅ Task Saved")
 
-            # RESET
             st.session_state.running = False
             st.session_state.start_time = None
             st.session_state.pause_time = None
@@ -170,7 +168,6 @@ if mode == "Employee":
 
             st.rerun()
 
-    # TIMER
     if st.session_state.start_time:
 
         current_time = time.time() if st.session_state.running else st.session_state.pause_time
@@ -218,7 +215,6 @@ elif mode == "Manager Dashboard":
         if date_filter:
             df = df[pd.to_datetime(df["Date"]).dt.date == date_filter]
 
-        st.subheader("📋 Data")
         st.dataframe(df, use_container_width=True)
 
         total = df["Total Time (sec)"].sum()
@@ -228,14 +224,8 @@ elif mode == "Manager Dashboard":
         col1.metric("Total Hours", round(total / 3600, 2))
         col2.metric("Active Hours", round(active / 3600, 2))
 
-        st.subheader("📊 Task Distribution")
-
         if not df.empty:
             st.bar_chart(df.groupby("Task")["Active Time (sec)"].sum())
-        else:
-            st.warning("No data")
-
-        st.subheader("⬇️ Export")
 
         st.download_button(
             "Download CSV",
