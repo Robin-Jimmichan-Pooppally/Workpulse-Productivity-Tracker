@@ -13,6 +13,13 @@ IST = pytz.timezone("Asia/Kolkata")
 # ===== FILE =====
 file = "task_log.csv"
 
+# ===== TASK LIST (GLOBAL - USE EVERYWHERE) =====
+TASKS = [
+    "Meeting", "List bill audit", "Retro bill audit", "CPS creation",
+    "Backup creations", "Assessments", "Training video",
+    "Coordination", "QA check", "Break"
+]
+
 # ===== LOAD USERS FROM SECRETS =====
 users = st.secrets["users"]
 
@@ -65,13 +72,7 @@ if mode == "Employee":
     user = st.session_state.username
     st.write(f"👤 User: {user}")
 
-    tasks = [
-        "Meeting", "List bill audit", "Retro bill audit", "CPS creation",
-        "Backup creations", "Assessments", "Training video",
-        "Coordination", "QA check", "Break"
-    ]
-
-    task = st.selectbox("Select Activity", tasks)
+    task = st.selectbox("Select Activity", TASKS)
     client_name = st.text_input("Client Name")
     status = st.selectbox("Status", ["In Progress", "Completed"])
     comments = st.text_area("Comments (Optional)")
@@ -165,13 +166,11 @@ elif mode == "Manager Dashboard":
     else:
         df = pd.read_csv(file)
 
-        # 🔍 SEARCH BAR
+        # 🔍 SEARCH
         search = st.text_input("🔍 Search (User / Task / Client / Comments)")
 
         if search:
-            df = df[
-                df.apply(lambda row: search.lower() in str(row).lower(), axis=1)
-            ]
+            df = df[df.apply(lambda row: search.lower() in str(row).lower(), axis=1)]
 
         st.dataframe(df, use_container_width=True)
 
@@ -190,7 +189,7 @@ elif mode == "Manager Dashboard":
 
             row = df.loc[selected_index]
 
-            # 🔐 ACCESS CONTROL
+            # ACCESS CONTROL
             can_edit = (
                 st.session_state.role == "manager" or
                 row["User"] == st.session_state.username
@@ -198,14 +197,25 @@ elif mode == "Manager Dashboard":
 
             can_delete = st.session_state.role == "manager"
 
-            new_task = st.text_input("Task", row["Task"], disabled=not can_edit)
+            # ✅ FIXED TASK DROPDOWN
+            task_index = TASKS.index(row["Task"]) if row["Task"] in TASKS else 0
+
+            new_task = st.selectbox(
+                "Task",
+                TASKS,
+                index=task_index,
+                disabled=not can_edit
+            )
+
             new_client = st.text_input("Client", row["Client Name"], disabled=not can_edit)
+
             new_status = st.selectbox(
                 "Status",
                 ["In Progress", "Completed"],
                 index=0 if row["Status"] == "In Progress" else 1,
                 disabled=not can_edit
             )
+
             new_comments = st.text_area("Comments", row.get("Comments", ""), disabled=not can_edit)
 
             col1, col2 = st.columns(2)
