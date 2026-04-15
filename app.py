@@ -13,18 +13,18 @@ IST = pytz.timezone("Asia/Kolkata")
 # ===== FILE =====
 file = "task_log.csv"
 
-# ===== TASK LIST (GLOBAL - USE EVERYWHERE) =====
+# ===== TASK LIST =====
 TASKS = [
     "Meeting", "List bill audit", "Retro bill audit", "CPS creation",
     "Backup creations", "Assessments", "Training video",
     "Coordination", "QA check", "Break"
 ]
 
-# ===== LOAD USERS FROM SECRETS =====
+# ===== LOAD USERS =====
 users = st.secrets["users"]
 
 # =========================
-# 🔐 LOGIN SYSTEM
+# 🔐 LOGIN
 # =========================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -32,7 +32,6 @@ if "logged_in" not in st.session_state:
     st.session_state.role = None
 
 if not st.session_state.logged_in:
-
     st.title("🔐 WorkPulse Login")
 
     username = st.text_input("Username")
@@ -70,10 +69,10 @@ if mode == "Employee":
     st.title("👨‍💻 WorkPulse – Employee Tracker")
 
     user = st.session_state.username
-    st.write(f"👤 User: {user}")
 
-    task = st.selectbox("Select Activity", TASKS)
-    client_name = st.text_input("Client Name")
+    task = st.selectbox("Activity Type", TASKS)
+    client_name = st.text_input("Client")
+    go_live = st.selectbox("Go Live / Practice", ["Go Live", "Practice"])
     status = st.selectbox("Status", ["In Progress", "Completed"])
     comments = st.text_area("Comments (Optional)")
     selected_date = st.date_input("Date", datetime.now(IST))
@@ -104,23 +103,26 @@ if mode == "Employee":
 
     if col3.button("⏹ Stop"):
         if st.session_state.start_time:
+
             end_time = time.time()
             total_time = int(end_time - st.session_state.start_time - st.session_state.total_paused)
 
             start_dt = datetime.fromtimestamp(st.session_state.start_time, IST)
             end_dt = datetime.now(IST)
 
+            duration = time.strftime('%H:%M', time.gmtime(total_time))
+
             new_data = pd.DataFrame([{
-                "User": user,
-                "Task": task,
-                "Client Name": client_name,
-                "Status": status,
-                "Comments": comments,
+                "Name": user,
                 "Date": selected_date.strftime("%Y-%m-%d"),
+                "Client": client_name,
+                "Go live / practice": go_live,
+                "Activity Type": task,
                 "Start Time": start_dt.strftime("%I:%M:%S %p"),
                 "End Time": end_dt.strftime("%I:%M:%S %p"),
-                "Total Time (sec)": total_time,
-                "Active Time (sec)": total_time
+                "Duration (hh:mm)": duration,
+                "Status": status,
+                "Comments": comments
             }])
 
             if os.path.exists(file):
@@ -167,7 +169,7 @@ elif mode == "Manager Dashboard":
         df = pd.read_csv(file)
 
         # 🔍 SEARCH
-        search = st.text_input("🔍 Search (User / Task / Client / Comments)")
+        search = st.text_input("🔍 Search")
 
         if search:
             df = df[df.apply(lambda row: search.lower() in str(row).lower(), axis=1)]
@@ -184,54 +186,42 @@ elif mode == "Manager Dashboard":
             selected_index = st.selectbox(
                 "Select Row",
                 df.index,
-                format_func=lambda i: f"{df.loc[i, 'User']} | {df.loc[i, 'Task']}"
+                format_func=lambda i: f"{df.loc[i, 'Name']} | {df.loc[i, 'Activity Type']}"
             )
 
             row = df.loc[selected_index]
 
-            # ACCESS CONTROL
             can_edit = (
                 st.session_state.role == "manager" or
-                row["User"] == st.session_state.username
+                row["Name"] == st.session_state.username
             )
 
             can_delete = st.session_state.role == "manager"
 
-            # ✅ FIXED TASK DROPDOWN
-            task_index = TASKS.index(row["Task"]) if row["Task"] in TASKS else 0
+            task_index = TASKS.index(row["Activity Type"]) if row["Activity Type"] in TASKS else 0
 
-            new_task = st.selectbox(
-                "Task",
-                TASKS,
-                index=task_index,
-                disabled=not can_edit
-            )
-
-            new_client = st.text_input("Client", row["Client Name"], disabled=not can_edit)
-
+            new_task = st.selectbox("Activity Type", TASKS, index=task_index, disabled=not can_edit)
+            new_client = st.text_input("Client", row["Client"], disabled=not can_edit)
             new_status = st.selectbox(
                 "Status",
                 ["In Progress", "Completed"],
                 index=0 if row["Status"] == "In Progress" else 1,
                 disabled=not can_edit
             )
-
             new_comments = st.text_area("Comments", row.get("Comments", ""), disabled=not can_edit)
 
             col1, col2 = st.columns(2)
 
             if col1.button("💾 Update"):
                 if can_edit:
-                    df.at[selected_index, "Task"] = new_task
-                    df.at[selected_index, "Client Name"] = new_client
+                    df.at[selected_index, "Activity Type"] = new_task
+                    df.at[selected_index, "Client"] = new_client
                     df.at[selected_index, "Status"] = new_status
                     df.at[selected_index, "Comments"] = new_comments
 
                     df.to_csv(file, index=False)
                     st.success("Updated ✅")
                     st.rerun()
-                else:
-                    st.error("❌ Not allowed")
 
             confirm = st.checkbox("Confirm Delete")
 
@@ -242,21 +232,11 @@ elif mode == "Manager Dashboard":
                     st.success("Deleted ✅")
                     st.rerun()
                 elif not can_delete:
-                    st.error("❌ Only manager can delete")
+                    st.error("Only manager can delete")
 
-        # METRICS
-        total = df["Total Time (sec)"].sum()
-        active = df["Active Time (sec)"].sum()
-
-        col1, col2 = st.columns(2)
-        col1.metric("Total Hours", round(total / 3600, 2))
-        col2.metric("Active Hours", round(active / 3600, 2))
-
-        if not df.empty:
-            st.bar_chart(df.groupby("Task")["Active Time (sec)"].sum())
-
+        # DOWNLOAD (Correct Format)
         st.download_button(
-            "Download CSV",
+            "Download Report",
             df.to_csv(index=False).encode("utf-8"),
-            "report.csv"
+            "workpulse_report.csv"
         )
