@@ -72,7 +72,7 @@ if mode == "Employee":
 
     task = st.selectbox("Activity Type", TASKS)
     client_name = st.text_input("Client")
-    go_live = st.selectbox("Go Live / Practice", ["Go Live", "Practice"])
+    go_live = st.selectbox("Live / Practice", ["Live", "Practice"])
     status = st.selectbox("Status", ["In Progress", "Completed"])
     comments = st.text_area("Comments (Optional)")
     selected_date = st.date_input("Date", datetime.now(IST))
