@@ -116,7 +116,7 @@ if mode == "Employee":
                 "Name": user,
                 "Date": selected_date.strftime("%Y-%m-%d"),
                 "Client": client_name,
-                "Go live / practice": go_live,
+                "Live / practice": go_live,
                 "Activity Type": task,
                 "Start Time": start_dt.strftime("%I:%M:%S %p"),
                 "End Time": end_dt.strftime("%I:%M:%S %p"),
